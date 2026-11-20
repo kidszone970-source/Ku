@@ -1,0 +1,170 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private user nutrition profile, physical metrics, targets, and settings.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 200 },
+        "fullName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "dateOfBirth": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "maxLength": 10 },
+        "gender": { "type": "string", "enum": ["male", "female", "other"] },
+        "heightCm": { "type": "number" },
+        "weightKg": { "type": "number" },
+        "activityLevel": {
+          "type": "string",
+          "enum": ["sedentary", "lightly_active", "moderately_active", "very_active", "extremely_active"]
+        },
+        "dietaryPreference": {
+          "type": "string",
+          "enum": ["vegetarian", "non_vegetarian", "vegan", "eggetarian"]
+        },
+        "fitnessGoal": {
+          "type": "string",
+          "enum": ["fat_loss", "muscle_building", "weight_maintenance", "general_fitness"]
+        },
+        "goalPace": {
+          "type": "string",
+          "enum": ["slow", "medium", "hard", "balanced"]
+        },
+        "customCalorieTarget": { "type": "number" },
+        "notificationsEnabled": { "type": "boolean" },
+        "mealReminderTime": { "type": "string", "maxLength": 10 },
+        "onboardingCompleted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "uid",
+        "fullName",
+        "dateOfBirth",
+        "gender",
+        "heightCm",
+        "weightKg",
+        "activityLevel",
+        "dietaryPreference",
+        "fitnessGoal",
+        "goalPace",
+        "onboardingCompleted",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "FoodEntry": {
+      "title": "FoodEntry",
+      "description": "A single logged food item or daily total entry associated with a user and calendar date.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "maxLength": 10 },
+        "mealType": { "type": "string", "enum": ["breakfast", "lunch", "dinner", "snacks", "daily_total"] },
+        "foodName": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "quantity": { "type": "number" },
+        "unit": { "type": "string", "minLength": 1, "maxLength": 32 },
+        "servingDescription": { "type": "string", "maxLength": 120 },
+        "calories": { "type": "number" },
+        "protein": { "type": "number" },
+        "carbs": { "type": "number" },
+        "fat": { "type": "number" },
+        "fiber": { "type": "number" },
+        "sugar": { "type": "number" },
+        "sodiumMg": { "type": "number" },
+        "saturatedFat": { "type": "number" },
+        "source": { "type": "string", "enum": ["manual", "database", "camera", "gallery", "label", "chatbot", "diet_plan"] },
+        "isEstimated": { "type": "boolean" },
+        "notes": { "type": "string", "maxLength": 300 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "date",
+        "mealType",
+        "foodName",
+        "quantity",
+        "unit",
+        "calories",
+        "protein",
+        "carbs",
+        "fat",
+        "fiber",
+        "source",
+        "isEstimated",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "WeightEntry": {
+      "title": "WeightEntry",
+      "description": "Historical body weight record for a user on a specific date.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "maxLength": 10 },
+        "weightKg": { "type": "number" },
+        "note": { "type": "string", "maxLength": 200 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "date", "weightKg", "createdAt"]
+    },
+    "DietPlan": {
+      "title": "DietPlan",
+      "description": "Saved personalized AI diet plan for the user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "dietaryPreference": { "type": "string", "maxLength": 40 },
+        "fitnessGoal": { "type": "string", "maxLength": 40 },
+        "targetCalories": { "type": "number" },
+        "meals": { "type": "array" },
+        "coachNotes": { "type": "string", "maxLength": 600 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "dietaryPreference", "fitnessGoal", "targetCalories", "meals", "createdAt", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Conversational AI nutrition coach message history.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "role": { "type": "string", "enum": ["user", "assistant"] },
+        "content": { "type": "string", "minLength": 1, "maxLength": 4000 },
+        "dateContext": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "maxLength": 10 },
+        "proposedEntries": { "type": "array" },
+        "followUpOptions": { "type": "array" },
+        "attachmentCount": { "type": "number" },
+        "voiceDurationSec": { "type": "number" },
+        "dietPlan": { "type": "object" },
+        "entriesLogged": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "role", "content", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private user nutrition profile and settings. Accessible only by the owning user."
+    },
+    "/users/{userId}/foodEntries/{entryId}": {
+      "schema": { "$ref": "#/entities/FoodEntry" },
+      "description": "Daily food intake entries owned by the user."
+    },
+    "/users/{userId}/weightHistory/{entryId}": {
+      "schema": { "$ref": "#/entities/WeightEntry" },
+      "description": "Body weight history records owned by the user."
+    },
+    "/users/{userId}/dietPlans/{planId}": {
+      "schema": { "$ref": "#/entities/DietPlan" },
+      "description": "Personalized AI diet plans saved for the user."
+    },
+    "/users/{userId}/chatMessages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "AI Nutrition Coach conversation history owned by the user."
+    }
+  }
+}

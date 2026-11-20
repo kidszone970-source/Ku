@@ -1,0 +1,6 @@
+{
+  "name": "NutriPulse — AI Nutrition Coach & Calorie Tracker",
+  "description": "An AI-powered personal nutrition coach, smart calorie & macro tracker, multimodal food & nutrition label scanner, and personalized diet planner.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

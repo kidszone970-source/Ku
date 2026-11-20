@@ -1,0 +1,277 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net: Default deny all unmatched paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core Security Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    function incoming() {
+      return request.resource.data;
+    }
+    function existing() {
+      return resource.data;
+    }
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    function isVerifiedOwner(userId) {
+      return isVerifiedUser() && request.auth.uid == userId;
+    }
+    function parentUserExists(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId));
+    }
+
+    // Validation Blueprint: UserProfile
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll([
+          'uid', 'fullName', 'dateOfBirth', 'gender', 'heightCm', 'weightKg',
+          'activityLevel', 'dietaryPreference', 'fitnessGoal', 'goalPace',
+          'onboardingCompleted', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'email', 'fullName', 'dateOfBirth', 'gender', 'heightCm', 'weightKg',
+          'activityLevel', 'dietaryPreference', 'fitnessGoal', 'goalPace',
+          'customCalorieTarget', 'notificationsEnabled', 'mealReminderTime',
+          'onboardingCompleted', 'createdAt', 'updatedAt'
+        ])
+        && data.uid == request.auth.uid
+        && data.uid == userId
+        && isValidId(data.uid)
+        && (!('email' in data) || (data.email is string && data.email.size() <= 200))
+        && data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 120
+        && data.dateOfBirth is string && data.dateOfBirth.size() == 10 && data.dateOfBirth.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.gender in ['male', 'female', 'other']
+        && data.heightCm is number && data.heightCm >= 50 && data.heightCm <= 280
+        && data.weightKg is number && data.weightKg >= 15 && data.weightKg <= 400
+        && data.activityLevel in ['sedentary', 'lightly_active', 'moderately_active', 'very_active', 'extremely_active']
+        && data.dietaryPreference in ['vegetarian', 'non_vegetarian', 'vegan', 'eggetarian']
+        && data.fitnessGoal in ['fat_loss', 'muscle_building', 'weight_maintenance', 'general_fitness']
+        && data.goalPace in ['slow', 'medium', 'hard', 'balanced']
+        && (!('customCalorieTarget' in data) || (data.customCalorieTarget is number && data.customCalorieTarget >= 0 && data.customCalorieTarget <= 10000))
+        && (!('notificationsEnabled' in data) || data.notificationsEnabled is bool)
+        && (!('mealReminderTime' in data) || (data.mealReminderTime is string && data.mealReminderTime.size() <= 10))
+        && data.onboardingCompleted is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: FoodEntry
+    function isValidFoodEntry(data, userId) {
+      return data.keys().hasAll([
+          'userId', 'date', 'mealType', 'foodName', 'quantity', 'unit',
+          'calories', 'protein', 'carbs', 'fat', 'fiber', 'source',
+          'isEstimated', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'userId', 'date', 'mealType', 'foodName', 'quantity', 'unit',
+          'servingDescription', 'calories', 'protein', 'carbs', 'fat', 'fiber',
+          'sugar', 'sodiumMg', 'saturatedFat', 'source', 'isEstimated', 'notes',
+          'createdAt', 'updatedAt'
+        ])
+        && data.userId == request.auth.uid
+        && data.userId == userId
+        && isValidId(data.userId)
+        && data.date is string && data.date.size() == 10 && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.mealType in ['breakfast', 'lunch', 'dinner', 'snacks', 'daily_total']
+        && data.foodName is string && data.foodName.size() >= 1 && data.foodName.size() <= 160
+        && data.quantity is number && data.quantity >= 0 && data.quantity <= 20000
+        && data.unit is string && data.unit.size() >= 1 && data.unit.size() <= 32
+        && (!('servingDescription' in data) || (data.servingDescription is string && data.servingDescription.size() <= 120))
+        && data.calories is number && data.calories >= 0 && data.calories <= 25000
+        && data.protein is number && data.protein >= 0 && data.protein <= 1000
+        && data.carbs is number && data.carbs >= 0 && data.carbs <= 2000
+        && data.fat is number && data.fat >= 0 && data.fat <= 1000
+        && data.fiber is number && data.fiber >= 0 && data.fiber <= 500
+        && (!('sugar' in data) || (data.sugar is number && data.sugar >= 0 && data.sugar <= 1000))
+        && (!('sodiumMg' in data) || (data.sodiumMg is number && data.sodiumMg >= 0 && data.sodiumMg <= 50000))
+        && (!('saturatedFat' in data) || (data.saturatedFat is number && data.saturatedFat >= 0 && data.saturatedFat <= 500))
+        && data.source in ['manual', 'database', 'camera', 'gallery', 'label', 'chatbot', 'diet_plan']
+        && data.isEstimated is bool
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 300))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: WeightEntry
+    function isValidWeightEntry(data, userId) {
+      return data.keys().hasAll(['userId', 'date', 'weightKg', 'createdAt'])
+        && data.keys().hasOnly(['userId', 'date', 'weightKg', 'note', 'createdAt'])
+        && data.userId == request.auth.uid
+        && data.userId == userId
+        && isValidId(data.userId)
+        && data.date is string && data.date.size() == 10 && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.weightKg is number && data.weightKg >= 15 && data.weightKg <= 400
+        && (!('note' in data) || (data.note is string && data.note.size() <= 200))
+        && data.createdAt is timestamp;
+    }
+
+    // Validation Blueprint: DietPlan
+    function isValidDietPlan(data, userId) {
+      return data.keys().hasAll([
+          'userId', 'title', 'dietaryPreference', 'fitnessGoal',
+          'targetCalories', 'meals', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'userId', 'title', 'dietaryPreference', 'fitnessGoal',
+          'targetCalories', 'meals', 'coachNotes', 'createdAt', 'updatedAt'
+        ])
+        && data.userId == request.auth.uid
+        && data.userId == userId
+        && isValidId(data.userId)
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 140
+        && data.dietaryPreference is string && data.dietaryPreference.size() >= 1 && data.dietaryPreference.size() <= 40
+        && data.fitnessGoal is string && data.fitnessGoal.size() >= 1 && data.fitnessGoal.size() <= 40
+        && data.targetCalories is number && data.targetCalories >= 800 && data.targetCalories <= 10000
+        && data.meals is list && data.meals.size() >= 1 && data.meals.size() <= 10 && data.meals[0] is map
+        && (!('coachNotes' in data) || (data.coachNotes is string && data.coachNotes.size() <= 600))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: ChatMessage
+    function isValidChatMessage(data, userId) {
+      return data.keys().hasAll(['userId', 'role', 'content', 'createdAt'])
+        && data.keys().hasOnly([
+          'userId', 'role', 'content', 'dateContext', 'proposedEntries',
+          'followUpOptions', 'attachmentCount', 'voiceDurationSec', 'dietPlan',
+          'entriesLogged', 'createdAt'
+        ])
+        && data.userId == request.auth.uid
+        && data.userId == userId
+        && isValidId(data.userId)
+        && data.role in ['user', 'assistant']
+        && data.content is string && data.content.size() >= 1 && data.content.size() <= 4000
+        && (!('dateContext' in data) || (data.dateContext is string && data.dateContext.size() == 10 && data.dateContext.matches('^\\d{4}-\\d{2}-\\d{2}$')))
+        && (!('proposedEntries' in data) || (data.proposedEntries is list && data.proposedEntries.size() <= 20 && (data.proposedEntries.size() == 0 || data.proposedEntries[0] is map)))
+        && (!('followUpOptions' in data) || (data.followUpOptions is list && data.followUpOptions.size() <= 8))
+        && (!('attachmentCount' in data) || (data.attachmentCount is number && data.attachmentCount >= 0 && data.attachmentCount <= 10))
+        && (!('voiceDurationSec' in data) || (data.voiceDurationSec is number && data.voiceDurationSec >= 0 && data.voiceDurationSec <= 600))
+        && (!('dietPlan' in data) || (data.dietPlan is map && data.dietPlan.meals is list && data.dietPlan.meals.size() >= 1 && data.dietPlan.meals.size() <= 10))
+        && (!('entriesLogged' in data) || data.entriesLogged is bool)
+        && data.createdAt is timestamp;
+    }
+
+    // Collection: /users/{userId} (PII Isolated strictly to Owner)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow list: if false;
+      allow create: if isVerifiedOwner(userId)
+        && isValidId(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedOwner(userId)
+        && isValidId(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'email', 'fullName', 'dateOfBirth', 'gender', 'heightCm', 'weightKg',
+          'activityLevel', 'dietaryPreference', 'fitnessGoal', 'goalPace',
+          'customCalorieTarget', 'notificationsEnabled', 'mealReminderTime',
+          'onboardingCompleted', 'updatedAt'
+        ]);
+      allow delete: if isVerifiedOwner(userId) && isValidId(userId);
+
+      // Subcollection: /users/{userId}/foodEntries/{entryId}
+      match /foodEntries/{entryId} {
+        allow get: if isValidId(userId) && isValidId(entryId) && isOwner(userId);
+        allow list: if isOwner(userId) && resource.data.userId == request.auth.uid;
+        allow create: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(entryId)
+          && isValidFoodEntry(incoming(), userId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && parentUserExists(userId);
+        allow update: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(entryId)
+          && isValidFoodEntry(incoming(), userId)
+          && incoming().userId == existing().userId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'date', 'mealType', 'foodName', 'quantity', 'unit', 'servingDescription',
+            'calories', 'protein', 'carbs', 'fat', 'fiber', 'sugar', 'sodiumMg',
+            'saturatedFat', 'notes', 'isEstimated', 'updatedAt'
+          ])
+          && parentUserExists(userId);
+        allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(entryId);
+      }
+
+      // Subcollection: /users/{userId}/weightHistory/{entryId}
+      match /weightHistory/{entryId} {
+        allow get: if isValidId(userId) && isValidId(entryId) && isOwner(userId);
+        allow list: if isOwner(userId) && resource.data.userId == request.auth.uid;
+        allow create: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(entryId)
+          && isValidWeightEntry(incoming(), userId)
+          && incoming().createdAt == request.time
+          && parentUserExists(userId);
+        allow update: if false;
+        allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(entryId);
+      }
+
+      // Subcollection: /users/{userId}/dietPlans/{planId}
+      match /dietPlans/{planId} {
+        allow get: if isValidId(userId) && isValidId(planId) && isOwner(userId);
+        allow list: if isOwner(userId) && resource.data.userId == request.auth.uid;
+        allow create: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(planId)
+          && isValidDietPlan(incoming(), userId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && parentUserExists(userId);
+        allow update: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(planId)
+          && isValidDietPlan(incoming(), userId)
+          && incoming().userId == existing().userId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'dietaryPreference', 'fitnessGoal', 'targetCalories',
+            'meals', 'coachNotes', 'updatedAt'
+          ])
+          && parentUserExists(userId);
+        allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(planId);
+      }
+
+      // Subcollection: /users/{userId}/chatMessages/{messageId}
+      match /chatMessages/{messageId} {
+        allow get: if isValidId(userId) && isValidId(messageId) && isOwner(userId);
+        allow list: if isOwner(userId) && resource.data.userId == request.auth.uid;
+        allow create: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(messageId)
+          && isValidChatMessage(incoming(), userId)
+          && incoming().createdAt == request.time
+          && parentUserExists(userId);
+        allow update: if isVerifiedOwner(userId)
+          && isValidId(userId)
+          && isValidId(messageId)
+          && isValidChatMessage(incoming(), userId)
+          && incoming().userId == existing().userId
+          && incoming().createdAt == existing().createdAt
+          && incoming().diff(existing()).affectedKeys().hasOnly(['entriesLogged'])
+          && parentUserExists(userId);
+        allow delete: if isVerifiedOwner(userId) && isValidId(userId) && isValidId(messageId);
+      }
+    }
+  }
+}
